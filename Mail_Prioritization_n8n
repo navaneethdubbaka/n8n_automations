@@ -1,0 +1,300 @@
+{
+  "name": "Job Mails copy",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "includeSpamTrash": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -320,
+        -60
+      ],
+      "id": "005faa1a-d224-412b-bf14-f8882b60a731",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OiahA8QjI7tzmAbT",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -100,
+        140
+      ],
+      "id": "a7573f6a-0747-4c86-ae23-a1e75fd10f6e",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "KawjcwiEBgDsxy02",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"Important\": true,\n  \"Summary\" : \"mail Summary\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        60,
+        140
+      ],
+      "id": "dd419cff-4122-42db-a734-5c5db4233848",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=From: {{ $json.From }}\nSubject:{{ $json.Subject }}\nContext:{{ $json.snippet }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Review the latest email and evaluate its importance. Determine if it requires my immediate attention, specifically if it involves job opportunities, recruiter messages, interview invitations, or application updates. Focus on identifying emails that are career-related or time-sensitive. Do not summarize—only assess whether it is critical to check now.\nAlso give a very short summary of the mail that best explains about the mail body.\nGive in Json Format:\n{\n  \"Important\": true,\n  \"Summary\" : \"mail_summary\"\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        -60
+      ],
+      "id": "57f7ae40-bfca-4d38-9fe1-47b3965f688a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9a8ab09c-e774-40a9-9d5d-4bd6436fc102",
+              "name": "output.Important",
+              "value": "={{ $json.output.Important }}",
+              "type": "boolean"
+            },
+            {
+              "id": "b8515ef3-1fa5-4b9f-a6b8-598eb19a471d",
+              "name": "snippet",
+              "value": "={{ $('Gmail Trigger').item.json.snippet }}",
+              "type": "string"
+            },
+            {
+              "id": "b9cbecca-8e43-4401-8d4d-c712fb7b17fa",
+              "name": "Subject",
+              "value": "={{ $('Gmail Trigger').item.json.Subject }}",
+              "type": "string"
+            },
+            {
+              "id": "0c8b0314-5570-4742-9fbc-3b41142f100f",
+              "name": "From",
+              "value": "={{ $('Gmail Trigger').item.json.From }}",
+              "type": "string"
+            },
+            {
+              "id": "7809fa07-6af3-41dc-99fd-a0d9a6a7b081",
+              "name": "output.Summary",
+              "value": "={{ $json.output.Summary }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        -60
+      ],
+      "id": "0ecf47a1-badc-4a6b-ac89-f86e6ed57259",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.Important }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "f8783d21-c4bd-4f72-98b0-644d6d269fef"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "2c5345c7-5503-44f0-b888-c902834f4cd3",
+                    "leftValue": "={{ $json.output.Important }}",
+                    "rightValue": "false",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        480,
+        -60
+      ],
+      "id": "1103ccef-fa78-499c-8c33-063cd912482b",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "chatId": "5643763227",
+        "text": "=Important Update !!\nSummary : {{ $('Edit Fields').item.json.output.Summary }}\nFrom: {{ $('Gmail Trigger').item.json.From }}\nContext : {{ $('Gmail Trigger').item.json.snippet }}\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        -60
+      ],
+      "id": "3697edb1-f852-4d72-8eb2-c768eb09f8fe",
+      "name": "Telegram",
+      "webhookId": "6c85606e-5c81-4a36-8b16-4d1c6a43a68f",
+      "credentials": {
+        "telegramApi": {
+          "id": "uIvAU9vsfR4vM8U7",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d362029c-dfb2-4472-9a5d-30fd7d4dbb4b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "625b08ceaae4e7a641b4e66dc48e7574b839a8aec1bac2652b71167876c8b892"
+  },
+  "id": "oFlWJie8ZMO8z6QD",
+  "tags": []
+}
